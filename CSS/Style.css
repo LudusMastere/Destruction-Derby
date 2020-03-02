@@ -1,0 +1,54 @@
+/*création de la font Azonix*/
+@font-face{ 
+
+    /*nom de la font*/
+	font-family:'Azonix';
+    /*source de la font*/
+	src: url('../Police/Azonix.otf');
+}
+
+/*style du body*/
+body{
+    /*image de fond fixe centrée et répétée*/
+	background:url(../Image/background.png) fixed repeat center; 
+}
+
+/*style des h1*/
+h1{
+    /*couleur du texte rouge*/
+    color:red;
+    /*couleur du fond blanche*/
+    background-color:white;
+    /*texte centré*/
+    text-align:center;
+    /*position absolut*/
+    position:absolute;
+    /*au centre de la page*/
+    top:50%;
+    left:50%;
+    transform: translate(-50%, -50%);
+    /*taille de la police 200%*/
+    font-size:500%;
+    /*font Azonix*/
+    font-family:Azonix;
+    /*arondissemant des bodrs*/
+    border-radius: 25% 25% 25% 25%;
+    /*padding*/
+    padding-bottom:0px;
+    padding-top:0px;
+    padding-left:0px;
+    padding-right:0px;
+}
+
+/*style du footer*/
+footer{
+    /*position absolut*/
+    position:absolute;
+    /*couleur du fond blanche*/
+    background-color:white;
+    /*couleur du texte rouge*/
+    color:red;
+    /*en bas à gauche de la page*/
+    bottom:0%;
+    left:0%;
+}

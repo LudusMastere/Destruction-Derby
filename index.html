@@ -1,0 +1,372 @@
+<!--cette page à été créée dans le but de créer un jeu à l'aide du framework Phaser 3.21-->
+<!DOCTYPE html>
+
+<!--html-->
+<html>
+
+<!--Head-->
+	<head>
+		<!--Titre de la page web-->
+		<title>Phaser Game</title>
+		<!--Encodage de la page-->
+		<meta charset="UTF-8"/>
+		<!--Icone de la page-->
+		<link rel="icon" href="Image/icon.png">
+        <!--Lien au css (cascading styel sheet)-->
+		<link rel=StyleSheet href="CSS/Style.css" type="text/css">
+        <!--Lien à phaser-->
+        <script src="//cdn.jsdelivr.net/npm/phaser@3.21.0/dist/phaser.js"></script>
+    </head>
+    
+<!--body-->
+    <body>
+        <!--h1 affichant si le joueur gagne ou perd-->
+        <h1 id="WinOrLose"></h1>
+        <script>
+            //config du jeu
+            var config = {
+                //type de jeu Phaser.AUTO
+                type: Phaser.AUTO,
+                //épaisseur du jeu
+                width: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
+                //hauteur du jeu
+                height: window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight,
+                //transparence du fond du jeu
+                transparent: true,
+                //gestion de la physique du jeu
+                physics: {
+                    //physique de type matter
+                    default: 'matter',
+                    matter: {
+                        debug: false,
+                        //set de la gravité du jeu à 0
+                        gravity: {
+                            x: 0,
+                            y: 0
+                        }
+                    }
+                },
+                //déclaration de la scène
+                scene: {
+                    //déclaration de la fonction preload
+                    preload: preload,
+                    //déclaration de la fonction create
+                    create: create,
+                    //déclaration de la fonction update
+                    update: update
+                }
+                
+            };
+
+            //instance du jeu
+            var game = new Phaser.Game(config);
+            
+            //objet du joueur
+            var Player;
+            //vie du joueur
+            var PlayerLife = 10;
+            
+            //vitesse des voitures
+            var Speed = 0.025;
+            
+            //Liste de paramètre des énnemis incluant le temps avant la prochaine rotation, la durée de la rotation, la direction de la rotation, le temps avant la prochaine accélération, sens de l'accélération et vie
+            var EnnemiParameterList=[];
+            
+            //nombre d'ennemi
+            var numOfEnnemi=5;
+            
+            //list des objet des ennemis
+            var EnnemiList=[];
+            
+            //force nécessaire pour qu'un impact soit valide
+            var needForce=5;
+            
+            //Sert à déterminer quand stopper le jeu
+            var GameOver = false;
+            
+            //sert à faire un décompte avant de lancer le jeu
+            var restTime = 5000;
+            
+            //preload du jeu
+            function preload ()
+            {
+                //lien vers les ressources du labo de phaser
+                this.load.setBaseURL('http://labs.phaser.io');
+                
+                //image du joueur
+                this.load.image('PlayerCar', 'assets/sprites/car-yellow.png');
+                //image des ennemis
+                this.load.image('Ennemi','assets/sprites/car-red.png');
+                //images utilisé pour les particules d'explosion
+                this.load.atlas('explosion', 'assets/particles/explosion.png', 'assets/particles/explosion.json');
+            }
+
+            //create du jeu
+            function create ()
+            {
+                //gestion de la musique
+                    //chargement de la musique
+                    var music = new Audio('audio/Car-Theft-101.mp3');
+                    //lancement de la musique
+                    music.play();
+                    //faire looper la musique
+                    music.loop=true;
+                
+                //gestion de la création du joueur
+                    //création du joueur à partir de l'image PlayerCar
+                    Player = this.matter.add.image(config.width/2, config.height/2, 'PlayerCar');
+                    //set de l'angle de base du joueur
+                    Player.setAngle(-90)
+                    //set de la friction du joueur
+                    Player.setFrictionAir(0.1);
+                    //set de la masse du joueur
+                    Player.setMass(10);
+                    //ajout du label joueur sur l'objet du joueur
+                    Player.body.label="Player";
+                
+                //gestion des particules
+                    //création des particules d'explosion
+                    var particles = this.add.particles('explosion');
+                    //création éméteur de la fumé de l'explosion
+                    particles.createEmitter({
+                        //ajout des images utilisées comme particules
+                        frame: [ 'smoke-puff', 'cloud', 'smoke-puff' ],
+                        //angle d'apparition des particules
+                        angle: { min: 240, max: 300 },
+                        //vitesse des particules
+                        speed: { min: 200, max: 300 },
+                        //nombre de particules
+                        quantity: 6,
+                        //durée de vie des particules
+                        lifespan: 2000,
+                        //transparence des particules
+                        alpha: { start: 1, end: 0 },
+                        //scale des particules
+                        scale: { start: 1.5, end: 0.5 },
+                        //activé faux
+                        on: false
+                    });
+                    //création éméteur de le flash de l'explosion
+                    particles.createEmitter({
+                        //ajout de l'image utilisée comme particule
+                        frame: 'muzzleflash2',
+                        //durée de vie de la particule
+                        lifespan: 200,
+                        //scale de la particule
+                        scale: { start: 2, end: 0 },
+                        //rotation de la particule
+                        rotate: { start: 0, end: 180 },
+                        //activé faux
+                        on: false
+                    });
+                
+                //gestion de la création des ennemis
+                    //pour 0 à numOfEnnemi
+                    for(i=0;i<numOfEnnemi;i++){
+                        //création d'un ennemi à l'aide de l'image Ennemi et ajout de cet ennemi dans la liste d'ennemi
+                        EnnemiList.push(this.matter.add.image(Phaser.Math.Between(0,config.width),Phaser.Math.Between(0,config.height), 'Ennemi'));
+                        //set de la friction de l'ennemi
+                        EnnemiList[EnnemiList.length-1].setFrictionAir(0.1);
+                        //set de la masse de l'ennemi
+                        EnnemiList[EnnemiList.length-1].setMass(10);
+                        //ajout du label ennemi à l'objet l'ennemi
+                        EnnemiList[EnnemiList.length-1].body.label="Ennemi";
+                        //initialisation des paramètres de l'ennemi dans l'ordre :
+                            //0: temps avant la prochaine rotation
+                            //0: durée de la rotation
+                            //0: direction de la rotation
+                            //0: temps avant la prochaine accélération
+                            //0: sens de l'accélération
+                            //5: vie
+                        EnnemiParameterList.push([0,0,0,0,0,5]);
+                    }
+                
+                //gestion des collision entre le joueur et les ennemis
+                    //création de l'évènement de la collision entre le joueur et les ennemis
+                    this.matter.world.on("collisionstart", function(event, bodyA, bodyB){
+                        //si les objets entrés en collision ont les labels Player et Ennemi
+                        if((bodyA.label == "Player" && bodyB.label == "Ennemi")){
+                            //gestion de la vélocité
+                                //calcule de la vélocité du joueur
+                                var MaxPlayerVelocity=Math.abs(bodyA.velocity.x)+Math.abs(bodyA.velocity.y);
+                                //calcule de la vélocité de l'ennemi
+                                var MaxEnnemiVelocity=Math.abs(bodyB.velocity.x)+Math.abs(bodyB.velocity.y);
+                            //si le joueur à une plus grande vélocité que l'ennemi et que ça vélocité est suffisament grande pour confirmé l'impact
+                            if((bodyA.velocity.x>=needForce || bodyA.velocity.x<=needForce*-1 || bodyA.velocity.y>=needForce || bodyA.velocity.y<=needForce*-1) && MaxPlayerVelocity>MaxEnnemiVelocity){
+                                //diminution de la vie de l'ennemi
+                                EnnemiParameterList[EnnemiList.indexOf(bodyB.parent.gameObject)][5]=EnnemiParameterList[EnnemiList.indexOf(bodyB.parent.gameObject)][5]-1;
+                                //émission des particules d'explosion
+                                particles.emitParticleAt(bodyB.parent.gameObject.x, bodyB.parent.gameObject.y);
+                                //si l'ennemi est mort
+                                if(EnnemiParameterList[EnnemiList.indexOf(bodyB.parent.gameObject)][5]==0){
+                                    //gestion de la mort de l'ennemi
+                                        //suppression de paramètre de l'ennemi de la liste des paramètres des ennemis
+                                        EnnemiParameterList.splice(EnnemiList.indexOf(bodyB.parent.gameObject),1);
+                                        //suppression de l'ennemi de la liste des ennemis
+                                        EnnemiList.splice(EnnemiList.indexOf(bodyB.parent.gameObject),1);
+                                        //destruction de l'objet ennemi
+                                        bodyB.parent.gameObject.destroy();
+                                        //si il n'y a plus d'ennemis
+                                        if(EnnemiList.length==0){
+                                            //validation de la fin de partie
+                                            GameOver=true;
+                                            //feedback pour le joueur
+                                            document.getElementById("WinOrLose").innerHTML="You Win";
+                                            document.getElementById("WinOrLose").style.padding = "10px 10px 10px 10px"; 
+                                        }
+                                }
+                            //sinon si l'ennemi à une plus grande vélocité que le joueur et que ça vélocité est suffisament grande pour confirmé l'impact
+                            }else if((bodyB.velocity.x>needForce || bodyB.velocity.x<needForce*-1 || bodyB.velocity.y>needForce || bodyB.velocity.y<needForce*-1) && MaxPlayerVelocity<MaxEnnemiVelocity){
+                                //diminution de la  vie du joueur
+                                PlayerLife=PlayerLife-1;
+                                //émission des particules d'explosion
+                                particles.emitParticleAt(bodyA.parent.gameObject.x, bodyA.parent.gameObject.y);
+                                //si le joueur est mort
+                                if(PlayerLife==0){
+                                    //destruction de l'objet joueur
+                                    bodyA.parent.gameObject.destroy();
+                                    //validation de la fin de partie
+                                    GameOver=true;
+                                    //feedback pour le joueur
+                                    document.getElementById("WinOrLose").innerHTML="You Lose";
+                                    document.getElementById("WinOrLose").style.padding = "10px 10px 10px 10px";
+                                }
+                            }
+                        }
+                    });
+                
+                //gestion des input du joueur dans la variable MyInputs
+                MyInputs = this.input.keyboard.createCursorKeys();
+                
+                //instantiation de la collision avec le monde (la zone de jeu)
+                this.matter.world.setBounds(0, 0, config.width, config.height);
+                
+            }
+            
+            //update du jeu
+            function update (time, delta)
+            {
+                //si le jeu est initialisé et en cours
+                if(needForce!=null){
+                    if(time>restTime){
+                        //si le jeu n'est pas fini et qu'il reste des ennemis
+                        if(!GameOver && EnnemiList!=null){
+                            
+                            document.getElementById("WinOrLose").innerHTML="";
+                            
+                            //gestion des mouvements du joueur
+                                //gestion de la rotation du joueur
+                                    //si le joueur appuie sur la flèche de direction gauche
+                                    if(MyInputs.left.isDown){
+                                        //modificaiton de l'angle du joueur
+                                        Player.angle -= 2;
+                                    }
+                                    //sinon si le joueur appuie sur la flèche de direction droite
+                                    else if(MyInputs.right.isDown){
+                                        //modificaiton de l'angle du joueur
+                                        Player.angle += 2;
+                                    }
+                                //gestion de l'accélération du joueur
+                                    //si le joueur appuie sur la flèche de direction haute
+                                    if (MyInputs.up.isDown)
+                                    {
+                                        //accélération du joueur vers l'avant
+                                        Player.thrust(Speed);
+                                    }
+                                    //sinon si le joueur appuie sur la flèche de direction basse
+                                    else if (MyInputs.down.isDown)
+                                    {
+                                        //accélération du joueur vers l'arrière
+                                        Player.thrustBack(Speed);
+                                    }
+                            
+                            //gestion des mouvements des ennemis
+                                //pour chaque ennemis encore vivant
+                                for(i=0;i<EnnemiList.length;i++){
+                                    //gestion de la rotation de l'ennemi
+                                        //si l'ennemi doit enclanché une nouvelle rotation
+                                        if(time>EnnemiParameterList[i][0]){
+                                            //set de la direction de la rotation
+                                            EnnemiParameterList[i][2]=Phaser.Math.Between(1,2);
+                                            //set de la durée de la rotation
+                                            EnnemiParameterList[i][1]=time+Phaser.Math.Between(300,400);
+                                            //set du temps avant la prochaine rotation
+                                            EnnemiParameterList[i][0]=EnnemiParameterList[i][1]+Phaser.Math.Between(2000,3000);
+                                        //sinon si la durée de la rotation n'est pas écoulée
+                                        }else if(time<EnnemiParameterList[i][1]){
+                                            //si la direction de la rotation est 1
+                                            if(EnnemiParameterList[i][2]==1){
+                                                //diminution de l'angle de l'ennemi
+                                                EnnemiList[i].angle-=4;
+                                            //sinon 
+                                            }else{
+                                                //augmentation de l'angle de l'ennemi
+                                                EnnemiList[i].angle+=4;
+                                            }
+                                        }
+                                    //gestion de l'accélération de l'ennemi
+                                        //si l'ennemi doit enclanché une nouvelle accélération
+                                        if(time>EnnemiParameterList[i][3]){
+                                            //set de la direction de l'accélération
+                                            EnnemiParameterList[i][4]=Phaser.Math.Between(0,1);
+                                            //si l'ennemi avance
+                                            if(EnnemiParameterList[i][4]==0){
+                                                //set du temps avant la prochaine accélération
+                                                EnnemiParameterList[i][3]=time+Phaser.Math.Between(900,1500);
+                                            //sinon
+                                            }else{
+                                                //set du temps avant la prochaine accélération
+                                                EnnemiParameterList[i][3]=time+Phaser.Math.Between(90,150);
+                                            }
+                                        //sinon
+                                        }else{
+                                            //si l'ennemi avance
+                                            if(EnnemiParameterList[i][4]==0){
+                                                //accélération de l'ennemi vers l'avant (le sprite étant tourné à 90°
+                                                EnnemiList[i].thrustRight(Speed);
+                                            //sinon
+                                            }else{
+                                                //accélération de l'ennemi vers l'arrière (le sprite étant tourné à 90°
+                                                EnnemiList[i].thrustLeft(Speed);
+                                            }
+                                        }
+                                }
+                        //sinon
+                        }else{
+                            //set de toute les variables à null et destruction des objets
+                                //set de la vie du joueur à null
+                                PlayerLife = null;
+                                //set de la vitesse des voitures à null
+                                Speed = null;
+                                //set des paramètres des ennemis à null
+                                EnnemiParameterList=null;
+                                //pour chaque ennemis encore vivant
+                                for(i=0;i<EnnemiList.length;i++){
+                                    //destruction de l'objet ennemi
+                                    EnnemiList[i].destroy();
+                                }
+                                //set de l'objet joueur à null
+                                Player=null;
+                                //set de la liste d'ennemis à null
+                                EnnemiList=null;
+                                //set du nombre d'ennemis à null
+                                numOfEnnemi = null;
+                                //set de la force nécessaire pour confirmé l'impact à null
+                                needForce = null;
+                        }
+                    }else{
+                        document.getElementById("WinOrLose").innerHTML=Math.trunc(5-time/1000);
+                    }
+                }
+            }
+        </script>
+
+    </body>
+    
+    <!--footer de la page-->
+    <footer>
+        <!--auteur de la page-->
+        <p>Anthony Lamour en Mastère 1 à Ludus Académie</p>
+    </footer>
+    
+</html>
